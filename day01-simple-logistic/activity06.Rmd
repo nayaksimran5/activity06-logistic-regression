@@ -6,3 +6,131 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+## Task 2: Load the necessary packages
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+#library(dplyr)
+library(skimr)
+```
+
+## Task 3: Load the data 
+
+```{r}
+resume <- data.frame(readr::read_csv("https://www.openintro.org/data/csv/resume.csv"))
+resume
+```
+
+```{r}
+glimpse(resume)
+```
+
+```{r}
+skim(resume)
+```
+
+It's an experimental study.
+
+`received_callback` is a numeric variable. It represents whether any applicants received call or not.
+
+# Creating appropriate data visualization
+
+```{r}
+# Plot the bar chart 
+resume %>% 
+  ggplot(aes(x = received_callback)) +
+  geom_bar(fill = "dodgerblue") + 
+  labs(title = "Distribution of Received call back",
+       x = "Received call back",
+       y = "Counts") +
+  theme_bw() 
+```
+
+```{r}
+resume %>% group_by(received_callback) %>% 
+  summarize(Total = sum(received_callback))
+```
+
+```{r}
+# Frequency table
+freq_table <- table(resume$received_callback)
+
+# Calculate the percentage of each category
+percent_table <- round(prop.table(freq_table) * 100, 2)
+
+# Combine the frequency and percentage tables into one table
+result_table <- cbind(freq_table, percent_table)
+
+# Rename the column names and row names
+colnames(result_table) <- c("n", "percent")
+rownames(result_table) <- c("No", "Yes")
+
+# Print the final table
+result_table
+```
+
+From the output, we can see that, 91.95% applicants has not received calls from the the job posting. 
+
+## Task 4: Probability and odds
+
+```{r}
+# Count the number of callbacks and no-callbacks
+num_callback <- sum(resume$received_callback == 1)
+num_nocallback <- sum(resume$received_callback == 0)
+
+# Calculate the probability of being called back
+prob_callback <- num_callback / (num_callback+num_nocallback)
+prob_callback
+
+# or 
+# Calculate the proportion of callbacks
+# prop_callback <- mean(resume$received_callback)
+
+# Calculate the odds of being called back
+odds_callback <- prob_callback/(1-prob_callback)
+odds_callback
+ 
+# or 
+# Calculate the odds of being called back
+# odds_callback <- num_callback / num_nocallback
+# odds_callback
+```
+
+The probability that a randomly selected résumé/person will be called back is 8.04%.
+
+The odds that a randomly selected résumé/person will be called back is 8.75%.
+
+## Task 5: Logistic regression
+
+```{r}
+# Creating a two-way table (also known as a contingency table or crosstable
+two_way_table <- table(resume$received_callback, resume$race)
+rownames(two_way_table) <- c("No", "Yes")
+colnames(two_way_table) <- c("Black", "White")
+two_way_table
+```
+
+prob_calledback_black = 157/(2278+2200+157+235) = 0.03223819
+
+The probability that a randomly selected résumé/person perceived as Black will be called back is 3.22%.
+
+odd_calledback_black = 0.03223819/(1-0.03223819) = 0.03331211
+
+The odds that a randomly selected résumé/person perceived as Black will be called back is 3.33%.
+
+
+```{r}
+# The {tidymodels} method for logistic regression requires that the response be a factor variable
+resume <- resume %>% 
+  mutate(received_callback = as.factor(received_callback))
+
+resume_mod <- logistic_reg() %>%
+  set_engine("glm") %>%
+  fit(received_callback ~ race, data = resume, family = "binomial")
+
+tidy(resume_mod) %>% 
+  knitr::kable(digits = 3)
+```
+
