@@ -20,7 +20,7 @@ library(skimr)
 
 ```{r}
 resume <- data.frame(readr::read_csv("https://www.openintro.org/data/csv/resume.csv"))
-resume
+
 ```
 
 ```{r}
@@ -31,9 +31,9 @@ glimpse(resume)
 skim(resume)
 ```
 
-It's an experimental study.
+1. It's an experimental study.
 
-`received_callback` is a numeric variable. It represents whether any applicants received call or not.
+2. `received_callback` is a numeric variable. It represents whether any applicants received call or not.
 
 # Creating appropriate data visualization
 
@@ -96,11 +96,14 @@ odds_callback
 # Calculate the odds of being called back
 # odds_callback <- num_callback / num_nocallback
 # odds_callback
+
+#odds = probability / (1 - probability)
+#probability = odds / (1 + odds)
 ```
 
-The probability that a randomly selected résumé/person will be called back is 8.04%.
+6. The probability that a randomly selected résumé/person will be called back is 8.04%.
 
-The odds that a randomly selected résumé/person will be called back is 8.75%.
+7. The odds that a randomly selected résumé/person will be called back is 8.75%.
 
 ## Task 5: Logistic regression
 
@@ -111,14 +114,21 @@ rownames(two_way_table) <- c("No", "Yes")
 colnames(two_way_table) <- c("Black", "White")
 two_way_table
 ```
+Using the above table, 
 
-prob_calledback_black = 157/(2278+2200+157+235) = 0.03223819
+The total number of résumés/people perceived as Black is: 2278 + 157 = 2435
 
-The probability that a randomly selected résumé/person perceived as Black will be called back is 3.22%.
+The number of résumés/person perceived as Black that received a callback is: Yes_Black = 157
 
-odd_calledback_black = 0.03223819/(1-0.03223819) = 0.03331211
+Therefore, the probability that a randomly selected résumé/person perceived as Black will be called back is:
 
-The odds that a randomly selected résumé/person perceived as Black will be called back is 3.33%.
+P(called back | Black) = Yes_Black / Total = 157 / 2435 = 0.0645
+
+6. The probability that a résumé/person perceived as Black will be called back is 0.0645 or 6.45%.
+
+odds(called back | Black) = P(called back | Black)/(1-P(called back | Black)) = 0.0645/(1-0.0645) = 0.06894709
+
+7. The odds that a randomly selected résumé/person perceived as Black will be called back is 6.89%.
 
 
 ```{r}
@@ -134,3 +144,135 @@ tidy(resume_mod) %>%
   knitr::kable(digits = 3)
 ```
 
+8. The estimated regression equation: log(odds) = β0hat + β1hat * (race) 
+
+For each applicant's race in Chicago, we expect the log odds of an applicant receiving a call back to increase by -2.675 units. 
+
+9. Using the above equation, the simplified estimated regression equation corresponding to résumés/persons perceived as Black: (black = 0) 
+
+Estimated score = beta0hat + beta1hat * 0 = -2.675
+ 
+Using the above equation, the simplified estimated regression equation corresponding to résumés/persons perceived as White: (white = 1)
+
+Estimated score = beta0hat + beta1hat * 1 = -2.675 + 0.438 = -2.237
+
+10. Based on the model, if a randomly selected résumé/person perceived as Black, the log-odds that they will be called back is -2.675.
+
+```{r}
+# To convert the log odds to odds
+tidy(resume_mod, exponentiate = TRUE) %>% 
+  knitr::kable(digits = 3)
+```
+
+11. Since the obtained model is in log format i.e we calculated the log-odds. So we need to exponentiate it in order to get the odds that they will be called back is β0hat + β1hat * (race) = 0.069 + 1.550 * (race)
+
+odds(called_back | Black): 0.069 + 1.550 * (race = 0) = 0.069
+
+This value is similar to the answer from (7).
+
+12. The probability that will be called back is 
+
+prob(called_back | Black) : prob/(1+prob) = 0.069/(1+0.069) = 0.0645463
+
+This value is similar to the answer from (6).
+
+```{r}
+# Is there a difference in call back rates in Chicago jobs, after adjusting for the an applicant’s years of experience, years of college, race, and sex
+resume_select <- resume %>% 
+  rename(sex = gender) %>% 
+  filter(job_city == "Chicago") %>% 
+  mutate(race = case_when(
+         race == "white" ~ "White",
+         TRUE ~ "Black"
+       ),
+       sex = case_when(
+         sex == "f" ~ "female",
+         TRUE ~ "male"
+       )) %>% 
+  select(received_callback, years_experience, race, sex)
+```
+
+Explain what six things the above code does in the context of this problem.
+Ans: First of all the `gender` column has been changes to `sex`. Secondly, the variables of `race` column i.e. `black` has been changed to `Black` and `white` has been changed to `White`. Thirdly, the variables of `sex` column i.e. `f` has been changed to `female` and `m` has been changed to `male`. 
+
+```{r}
+#GGally::ggbivariate
+```
+
+## Task 6: Relationship Exploration
+
+```{r}
+# Creating an appropriate data visualization to explore the relationship between `resume_select` and each of the explanatory variables.
+
+resume_select %>% ggplot(aes(x = years_experience,
+                   y = received_callback)) + 
+  geom_point(alpha=0.20) +
+  geom_smooth(se = FALSE, method = "lm", size = 1) +
+  theme_bw()
+
+resume_select %>% ggplot(aes(x = sex,
+                   y = received_callback)) + 
+  geom_point(alpha=0.20) +
+  geom_smooth(se = FALSE, method = "lm", size = 1) +
+  theme_bw()
+
+resume_select %>% ggplot(aes(x = race,
+                   y = received_callback)) + 
+  geom_point(alpha=0.20) +
+  geom_smooth(se = FALSE, method = "lm", size = 1) +
+  theme_bw()
+```
+
+## Task 7: Fitting the model
+
+```{r}
+mult_log_mod <- glm(received_callback ~ years_experience + race + sex, data = resume_select, family = "binomial")
+
+tidy(mult_log_mod)
+```
+
+log(odds) = β0hat + β1hat * (years_experience) + β2hat * (race:White) + β3hat * (sex:male)
+
+odds = pHat/(1-pHat) , pHat = estimated probability of receiving a callback 
+
+The estimated coefficient for years_experience, we would say: For each additional year of experience for an applicant in Chicago, we expect the log odds of an applicant receiving a call back to increase by 0.045 units. Assuming applicants have similar time in spent in college, similar inferred races, and similar inferred sex.
+
+We are describing this in log odds. Fortunately, we can convert these back to odds using the following transformation:
+
+odds = e^log(odds)
+
+```{r}
+# To convert the log odds to odds
+tidy(mult_log_mod, exponentiate = TRUE) %>% 
+  knitr::kable(digits = 3)
+```
+
+Interpreting the estimated coefficient for years_experience: For each additional year of experience for an applicant in Chicago, we expect the odds of an applicant receiving a call back to increase by 0.038 units. Assuming applicants have similar time in spent in college, similar inferred races, and similar inferred sex.
+
+
+## Task 8: Assessing model fit
+
+```{r}
+# To store residuals and create row number variable
+mult_log_aug <- augment(mult_log_mod, type.predict = "response", 
+                      type.residuals = "deviance") %>% 
+                      mutate(id = row_number())
+
+# Plot residuals vs fitted values
+ggplot(data = mult_log_aug, aes(x = .fitted, y = .resid)) + 
+geom_point() + 
+geom_hline(yintercept = 0, color = "red") + 
+labs(x = "Fitted values", 
+     y = "Deviance residuals", 
+     title = "Deviance residuals vs. fitted")
+
+# Plot residuals vs row number
+ggplot(data = mult_log_aug, aes(x = id, y = .resid)) + 
+geom_point() + 
+geom_hline(yintercept = 0, color = "red") + 
+labs(x = "id", 
+     y = "Deviance residuals", 
+     title = "Deviance residuals vs. id")
+```
+
+Here we produced two residual plots: the deviance residuals against the fitted values and the deviance variables against the index id (an index plot). The index plot allows us to easily see some of the more extreme observations - there are a lot (|di| > 2 is quiet alarming). The residual plot may look odd (why are there two distinct lines?!?), but this is a pretty typical shape when working with a binary response variable (the original data is really either a 0 or a 1). In general because there are so many extreme values in the index plot, this model leaves room for improvement.
